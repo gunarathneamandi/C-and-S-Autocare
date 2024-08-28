@@ -1,80 +1,74 @@
 import express from 'express';
-import multer from 'multer';
-import { Cart } from '../models/cartmodel.js';
+import { Cart } from '../models/cartModel.js';
+import { authenticateToken } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Multer storage configuration
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, 'uploads/'); // Destination folder for storing uploaded files
-    },
-    filename: function (req, file, cb) {
-        cb(null, file.originalname); // Renaming uploaded files
-    }
+router.post("/upload", async (req, res) => {
+  const { base64 } = req.body;
+
+  try {
+    Images.create({ image: base64 });
+
+    res.send({ Status: "ok" });
+  } catch (error) {
+    res.send({ Status: "error", data: error });
+  }
+});
+router.post("/", authenticateToken, async (req, res) => {
+  try {
+      if (
+          !req.body.image ||
+          !req.body.name ||
+          !req.body.amount ||
+          !req.body.quantity 
+      ) {
+          return res.status(400).send({
+              message: "Send all required fields",
+          });
+      }
+      const newCart = {
+          userId: req.user.id,
+          image: req.body.image,
+          name: req.body.name,
+          amount: req.body.amount,
+          quantity: req.body.quantity,
+      };
+
+      const cart = await Cart.create(newCart);
+
+      return res.status(201).send(cart);
+  } catch (error) {
+      console.log(error.message);
+      res.status(500).send({ message: "Internal Server Error" });
+  }
 });
 
-// Multer upload instance
-const upload = multer({ storage: storage });
-
-// POST route with multer upload middleware
-router.post('/', upload.single('image'), async (request, response) => {
-    try {
-        if (
-            !request.file ||
-            !request.body.name ||
-            !request.body.amount ||
-            !request.body.quantity ||
-            !request.body.total ||
-            !request.body.userId
-        ) {
-            return response.status(400).send({
-                message: 'Send all required fields'
-            });
-        }
-        const newCart = {
-            image: request.file.path, // Save file path to the database
-            name: request.body.name,
-            amount: request.body.amount,
-            quantity: request.body.quantity,
-            total: request.body.total,
-            userId: request.body.userId
-        };
-        const cart = await Cart.create(newCart);
-
-        return response.status(201).send(cart);
-    } catch (error) {
-        console.log(error.message);
-        response.status(500).send({ message: error.message });
-    }
+router.get('/', authenticateToken, async (req, res) => {
+  try {
+      const cart = await Cart.find({ userId: req.user.id });
+      return res.status(200).json(cart);
+  } catch (error) {
+      console.log(error.message);
+      res.status(500).send({ message: "Internal Server Error" });
+  }
 });
 
-router.get('/', async (request, response) => {
-    try {
-        const cart = await Cart.find({});
+router.delete('/:id', authenticateToken, async (req, res) => {
+  try {
+      const { id } = req.params;
 
-        return response.status(200).json(cart);
-    } catch (error) {
-        console.log(error.message);
-        response.status(500).send({ message: error.message });
-    }
-});
+      const result = await Cart.findByIdAndDelete(id);
 
-router.delete('/:id', async (request, response) => {
-    try {
-        const { id } = request.params;
-
-        const result = await Cart.findByIdAndDelete(id);
-
-        if (!result) {
-            response.status(404).send({ message: 'Product not deleted' });
-        } else {
-            response.status(200).send({ message: 'Deleted successfully' });
-        }
-    } catch (error) {
-        console.log(error.message);
-        response.status(500).send({ message: error.message });
-    }
+      if (!result) {
+          return res.status(404).send({ message: 'Product not deleted' });
+      } else {
+          return res.status(200).send({ message: 'Deleted successfully' });
+      }
+  } catch (error) {
+      console.log(error.message);
+      res.status(500).send({ message: "Internal Server Error" });
+  }
 });
 
 export default router;

@@ -1,49 +1,92 @@
-import React,{ useEffect,useState} from 'react'
-import Backbtn from '../components/BackBtn'
-import Spinner from '../components/Spinner'
-import axios from 'axios'
-import { Link, useNavigate } from 'react-router-dom'
-
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
+import Spinner from '../components/Spinner';
+import { useNavigate } from 'react-router-dom';
+import Footer from '../components/Footer';
+import ErrorMessage from '../components/ErrorMessage';
+import TopNav from '../components/TopNav';
 
 const Createpayment = () => {
-  const [uname,setUname] =useState("");
-  const [amount,setAmount] =useState("");
-  const [image,setImage] =useState("");
-  const [loading,setLoading] =useState(false);
-  const [order,setOrder]=useState([]);
-  const navigate =useNavigate();
-  useEffect(()=>{
-    setLoading(true);
-    axios.get('http://localhost:5555/order/')
-    .then((response)=>{
-        setOrder(response.data);
-        setLoading(false);
+  const [image, setImage] = useState("");
+  const [order, setOrder] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const [showErrorToast, setShowErrorToast] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const navigate = useNavigate();
 
-    }).catch((error)=>{
+  useEffect(() => {
+    setLoading(true);
+    axios.get('http://localhost:5555/api/order?sortBy=orderDate&order=desc&limit=1')
+      .then((response) => {
+        if (response.data.length > 0) {
+          setOrder(response.data[response.data.length - 1]); 
+        }
+        setLoading(false);
+      })
+      .catch((error) => {
         console.log(error);
         setLoading(false);
-    });
-},[]);
-  const handlepayment = ()=>{
-    const data = {
-      uname,
-      amount,
-      image
-    };
-    setLoading(true);
-    axios.post('http://localhost:5555/payment',data)
-    .then(()=>{
-      setLoading(false);
-      navigate('/');
-    }).catch((error)=>{
-      setLoading(false);
-      alert('An error happened. please Check console');
-      console.log(error);
-    })
-  }
+      });
+  }, []);
+  const handleImageError = (message) => {
+    setErrorMessage(message);
+    setShowErrorToast(true);
+  };
+
+  const handleCompleteOrder = async () => {
+    try {
+     
+      if (!image) {
+        setShowErrorToast(true);
+        return; 
+      }
+  
+      const paymentData = {
+        userId: order.userId,
+        orderId: order._id,
+        paymentStatus: 'Pending',
+        image,
+        amount: order.totalPrice.toFixed(2),
+      };
+  
+     
+      await axios.post('http://localhost:5555/api/payment', paymentData);
+  
+      
+      setShowSuccessToast(true);
+      navigate('#'); 
+    } catch (error) {
+      console.error(error);
+      setShowErrorToast(true);
+    }
+  };
+  
+
+  const convertToBase64 = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (!/(jpeg|jpg|png)$/i.test(file.type)) {
+        handleImageError('Please upload a valid image file (JPEG, JPG, or PNG)');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        setImage(reader.result);
+      };
+      reader.onerror = (error) => {
+        console.log("Error: ", error);
+      };
+    }
+  };
+  
+  
   return (
-    <div className='p-4'>
-      <div className='flex justify-between items-center'>
+    <div>
+      <TopNav/>
+      <div className='flex justify-between items-center mt-16'>
                 <h1 className='text-4xl font-bold mx-56 my-8'>Bank Details</h1>
             </div>
             <div className='flex justify-center'>
@@ -109,18 +152,24 @@ const Createpayment = () => {
                 <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
             </svg>
             <p className="mb-2 text-sm text-gray-500 dark:text-gray-400"><span className="font-semibold">Click to upload</span> or drag and drop</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">SVG, PNG, JPG or GIF (MAX. 800x400px)</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">JPEG, PNG, JPG  (MAX. 800x400px)</p>
         </div>
-        <input id="dropzone-file" type="file" class="hidden" />
+        <input onChange={convertToBase64} id="dropzone-file" type="file" class="hidden" />
     </label>
-</div> 
-<div className='mt-4 '>
-<button class="bg-red-800 hover:bg-blue-700 text-white font-bold py-1 px-5 rounded mr-2">Edit</button>
-<button class="bg-blue-900 hover:bg-red-700 text-white font-bold py-1 px-2 rounded">Upload</button>
 </div>
+{image && (
+  <div className="flex justify-center mt-4">
+    <img src={image} alt="Selected Image" className="max-w-xs max-h-48 rounded-lg shadow-lg" />
+  </div>
+  
+)}
+{showErrorToast && <ErrorMessage message={errorMessage} />}
 </div>
 
-      {loading ? (<Spinner/>) :(
+{loading ? (
+        <Spinner />
+      ) : (
+        order && (
 
       <div className="mx-auto mt-20 mb-8 rounded-lg border border-blue-500 bg-white p-8 shadow-2xl w-3/5 ">
       <div className="mb-2 flex justify-between">
@@ -132,34 +181,56 @@ const Createpayment = () => {
 <p className="text-gray-700">Date</p>
         </div>
        
-       <p className="text-gray-700">12-12-2023</p> 
+       <p className="text-gray-700">{new Date(order.orderDate).toLocaleDateString()}</p> 
        </div>
       <div className="flex justify-between">
          <p className="text-gray-700">Customer</p>
-        <p className="text-gray-700">Nipuna</p>
+        <p className="text-gray-700">{order.userId.username}</p>
       </div>
       <hr className='my-3'/>
       <div className="mb-2 flex justify-between">
        <p className="text-gray-700">Order Number</p>
-       <p className="text-gray-700">{order._id}</p> 
+       <p className="text-gray-700">{order.orderNumber}</p> 
        </div>
       <div className="flex justify-between">
          <p className="text-gray-700">Total</p>
-        <p className="text-gray-700">Rs.2615</p>
+        <p className="text-gray-700">{order.totalPrice.toFixed(2)}</p>
+        
       </div>
       <hr className='my-3'/>
       <div>
       <p className="text-gray-700">Order Line</p>
+      {order.items.map((item, index) => (
+          <div key={index} className="flex justify-between mt-6">
+           <img src={item.image} alt="Payment" className="w-20 h-20 object-cover rounded-lg" />
+            <p>{item.name}</p>
+            <p>{item.quantity}</p>
+            <p>(x1) {item.amount}</p>
+          </div>
+        ))}
       </div>
       <div className=' flex justify-center'>
-      <Link to='/payment/dashboard'>
-      <button  className="mt-6 w-2/4 h-10 rounded-md bg-blue-900 py-1.5 font-medium text-blue-50 hover:bg-blue-600">Complete Order</button>
-      </Link>
-      </div>
-      </div>
+      <button onClick={handleCompleteOrder} className="mt-6 w-2/4 h-10 rounded-md bg-blue-900 py-1.5 font-medium text-blue-50 hover:bg-blue-600">Complete Order</button>
       
-      )};
-      
+      </div>
+    
+      </div>
+       )
+      )}
+      {showSuccessToast && (
+  <div className="fixed bottom-0 right-0 mb-4 mr-4 bg-green-500 text-white py-2 px-4 rounded-lg">
+    <p>Order completed successfully!</p>
+    <button onClick={() => setShowSuccessToast(false)} className="ml-2 text-white font-bold">Close</button>
+  </div>
+)}
+    
+      {showErrorToast && (
+  <div className="fixed bottom-0 right-0 mb-4 mr-4 bg-red-500 text-white py-2 px-4 rounded-lg">
+    <p>Failed to complete order. Please try again later.</p>
+    <button onClick={() => setShowErrorToast(false)} className="ml-2 text-white font-bold">Close</button>
+  </div>
+)}
+     <Footer/>
     </div>  
   )
 }

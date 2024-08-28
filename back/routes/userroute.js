@@ -1,92 +1,128 @@
 import express from 'express';
-import { User } from '../models/usermodel.js';
+import { User} from '../models/userModel.js';
+const router =express.Router();
 
-const router = express.Router();
 
-// Route to create a new user
-router.post('/', async (req, res) => {
+// Route for saving a new user
+router.post('/', async (request, response) => {
     try {
-        const { id, name } = req.body;
+        if (
+            !request.body.firstName ||
+            !request.body.lastName ||
+            !request.body.dateOfBirth ||
+            !request.body.contactNumber ||
+            !request.body.address ||
+            !request.body.NIC ||
+            !request.body.username ||
+            !request.body.email ||
+            !request.body.password
 
-        // Check if the user ID already exists
-        const existingUser = await User.findOne({ id });
-        if (existingUser) {
-            return res.status(400).json({ message: 'User with the provided ID already exists' });
+        ) {
+            return response.status(400).send({
+                message: 'Send all required fields: firstName, lastName, dateOfBirth, contactNumber,address,username,email,password',
+            });
         }
 
-        // Create a new user
-        const newUser = new User({ id, name });
-        await newUser.save();
+        const newUser= {
+            firstName: request.body.firstName,
+            lastName: request.body.lastName,
+            dateOfBirth: request.body.dateOfBirth,
+            contactNumber: request.body.contactNumber,
+            address:request.body.address,
+            NIC:request.body.NIC,
+            username:request.body.username,
+            email:request.body.email,
+            password:request.body.password
+        };
 
-        res.status(201).json(newUser);
+        const createdUser = await User.create(newUser);
+        return response.status(201).send(createdUser);
     } catch (error) {
-        console.error('Error creating user:', error);
-        res.status(500).json({ message: 'Server Error' });
+        console.log(error.message);
+        response.status(500).send({ message: error.message });
     }
 });
 
-// Route to get all users
-router.get('/', async (req, res) => {
+// Route for get all users from the database
+router.get('/', async (request, response) => {
     try {
-        const users = await User.find();
-        res.status(200).json(users);
+        const Users = await User.find({});
+        return response.status(200).json({
+            count: Users.length,
+            data: Users
+        });
     } catch (error) {
-        console.error('Error fetching users:', error);
-        res.status(500).json({ message: 'Server Error' });
+        console.log(error.message);
+        response.status(500).send({ message: error.message });
     }
 });
 
-// Route to get a user by ID
-router.get('/:id', async (req, res) => {
+// Route for getting one user from the database by id
+router.get('/:id', async (request, response) => {
     try {
-        const { id } = req.params;
-        const user = await User.findOne({ id });
-        if (!user) {
-            return res.status(404).json({ message: 'User not found' });
+        const { id } = request.params;
+
+        const foundUser = await User.findById(id);
+        if (!foundUser) {
+            return response.status(404).json({ message: "User not found" });
         }
-        res.status(200).json(user);
+
+        return response.status(200).json(foundUser);
     } catch (error) {
-        console.error('Error fetching user:', error);
-        res.status(500).json({ message: 'Server Error' });
+        console.log(error.message);
+        response.status(500).send({ message: error.message });
     }
 });
 
-// Route to update a user by ID
-router.put('/:id', async (req, res) => {
+// Route for updating a user
+router.put('/:id', async (request, response) => {
     try {
-        const { id } = req.params;
-        const { name } = req.body;
+        const { id } = request.params;
+        
+        if (
+            !request.body.firstName ||
+            !request.body.lastName ||
+            !request.body.dateOfBirth ||
+            !request.body.contactNumber ||
+            !request.body.address ||
+            !request.body.username ||
+            !request.body.email ||
+            !request.body.password
+        ) {
+            return response.status(400).send({
+                message: 'Send all required fields: firstName, lastName, dateOfBirth, contactNumber ,address,NIC,username,email,password',
+            });
+        }
 
-        // Find the user by ID and update its name
-        const updatedUser = await User.findOneAndUpdate({ id }, { name }, { new: true });
-
+        const updatedUser = await User.findByIdAndUpdate(id, request.body);
+        
         if (!updatedUser) {
-            return res.status(404).json({ message: 'User not found' });
+            return response.status(404).json({ message: 'User not found' });
         }
 
-        res.status(200).json(updatedUser);
+        return response.status(200).send({message:'User updated successfully'});
+
     } catch (error) {
-        console.error('Error updating user:', error);
-        res.status(500).json({ message: 'Server Error' });
+        console.log(error.message);
+        response.status(500).send({ message: error.message });
     }
 });
 
-// Route to delete a user by ID
-router.delete('/:id', async (req, res) => {
+// Route for deleting a User
+router.delete('/:id', async (request, response) => {
     try {
-        const { id } = req.params;
+        const { id } = request.params;
 
-        // Find the user by ID and delete it
-        const deletedUser = await User.findOneAndDelete({ id });
+        const result = await User.findByIdAndDelete(id);
 
-        if (!deletedUser) {
-            return res.status(404).json({ message: 'User not found' });
+        if (!result) {
+            return response.status(404).json({ message: 'User not found' });
         }
 
-        res.status(200).json({ message: 'User deleted successfully' });
+        return response.status(200).send({message:'User deleted successfully'});
     } catch (error) {
-        console.error('Error deleting user:', error);
-        res.status(500).json({ message: 'Server Error' });
+        console.log(error.message);
+        response.status(500).send({ message: error.message });
     }
 });
 

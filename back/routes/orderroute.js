@@ -1,12 +1,12 @@
 import express from 'express';
 import { Order } from '../models/ordermodel.js';
-
+import { authenticateToken } from "../middleware/auth.js";
 const router = express.Router();
 
-// Route to handle checkout and save order details
-router.post('/', async (req, res) => {
+router.post('/', authenticateToken, async (req, res) => {
     try {
-        const { userId, items, totalPrice } = req.body;
+        const userId = req.user.id; 
+        const { items, totalPrice } = req.body;
 
         const order = new Order({
             userId,
@@ -14,7 +14,6 @@ router.post('/', async (req, res) => {
             totalPrice
         });
 
-        // Save the order to the database
         await order.save();
 
         res.status(201).json({ message: 'Order placed successfully!', orderId: order._id });
@@ -24,9 +23,23 @@ router.post('/', async (req, res) => {
     }
 });
 
+router.get('/:id', async (request , response)=>{
+  try{
+
+      const {id} = request.params;
+
+      const order = await Order.findById(id);
+
+      return response.status(200).json({order});
+
+  } catch(error){
+      console.log(error.message);
+      response.status(500).send({message:error.message});
+  }
+});
 router.get('/', async (req, res) => {
     try {
-        const orders = await Order.find();
+        const orders = await Order.find().populate('userId');
         res.status(200).json(orders);
     } catch (error) {
         console.error(error.message);
@@ -46,5 +59,6 @@ router.get('/:id', async (req, res) => {
         res.status(500).json({ message: 'Server Error' });
     }
 });
+
 
 export default router;

@@ -21,7 +21,7 @@ import {
 const SideNav = () => {
   return (
     
-    <Card className="h-[calc(100vh-2rem)] w-1/6 max-w-[20rem] p-4 shadow-xl bg-gray-100 shadow-blue-gray-900/5">
+    <Card className="h-screen w-1/6 max-w-[20rem] p-4 shadow-xl bg-gray-100 shadow-blue-gray-900/5">
     
     <List>
       <Link to='/payment/dashboard'>
